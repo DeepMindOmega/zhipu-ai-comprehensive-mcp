@@ -22,6 +22,13 @@
 ## 安装和使用
 
 ### 1. 安装依赖
+有两种方式安装依赖：
+- 方式一：直接运行安装脚本（推荐）
+```bash
+./setup.sh
+```
+
+- 方式二：手动安装依赖
 ```bash
 pip install zhipuai aiohttp beautifulsoup4 sniffio httpx anyio
 ```

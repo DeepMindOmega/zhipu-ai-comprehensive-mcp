@@ -35,12 +35,10 @@ Thumbs.db
 
 # Configuration (protect API keys)
 # 保留配置文件模板，但排除实际的API密钥文件
-!*.config.json
+!*.template.json
 *.config.json
-!zhipu_comprehensive_config.json
-!zhipu_vision_config.json
-zhipu_comprehensive_config.json
-zhipu_vision_config.json
+!config.template.json
+config.template.json
 
 # Logs
 *.log

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-智谱AI Comprehensive MCP Server
-综合性的Model Context Protocol服务器，包含多种AI能力
+智谱AI Enhanced Comprehensive MCP Server
+增强版综合性Model Context Protocol服务器，包含多种AI能力
+支持在没有API密钥的情况下使用基础功能
 """
 
 import asyncio
@@ -20,10 +21,12 @@ import re
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class ZhipuComprehensiveMCP:
-    def __init__(self, api_key: str):
+class ZhipuComprehensiveEnhancedMCP:
+    def __init__(self, api_key: str = None):
         self.api_key = api_key
-        self.client = ZhipuAI(api_key=api_key)
+        self.client = None
+        if api_key:
+            self.client = ZhipuAI(api_key=api_key)
         self.routes = web.RouteTableDef()
         self.setup_routes()
         
@@ -35,9 +38,9 @@ class ZhipuComprehensiveMCP:
     async def handle_capabilities(self, request):
         """处理能力查询请求"""
         capabilities = {
-            "name": "zhipu-comprehensive-mcp",
+            "name": "zhipu-comprehensive-enhanced-mcp",
             "version": "1.0.0",
-            "description": "智谱AI综合性MCP服务器，提供多种AI能力",
+            "description": "智谱AI增强版综合性MCP服务器，提供多种AI能力",
             "models": [
                 {
                     "id": "glm-4",
@@ -67,7 +70,7 @@ class ZhipuComprehensiveMCP:
             "tools": [
                 {
                     "name": "web_search",
-                    "description": "智谱AI联网搜索工具",
+                    "description": "智谱AI联网搜索工具（需要API密钥）",
                     "parameters": {
                         "query": {"type": "string", "required": True, "description": "搜索查询"},
                         "max_results": {"type": "integer", "required": False, "default": 5}
@@ -75,7 +78,7 @@ class ZhipuComprehensiveMCP:
                 },
                 {
                     "name": "web_reader",
-                    "description": "网页内容读取工具",
+                    "description": "网页内容读取工具（无需API密钥，可选AI摘要）",
                     "parameters": {
                         "url": {"type": "string", "required": True, "description": "网页URL"},
                         "summary": {"type": "boolean", "required": False, "default": False}
@@ -83,7 +86,7 @@ class ZhipuComprehensiveMCP:
                 },
                 {
                     "name": "repo_analyzer",
-                    "description": "开源仓库分析工具",
+                    "description": "开源仓库分析工具（需要API密钥）",
                     "parameters": {
                         "repo_url": {"type": "string", "required": True, "description": "仓库URL (GitHub/GitLab)"},
                         "analyze_readme": {"type": "boolean", "required": False, "default": True},
@@ -92,7 +95,7 @@ class ZhipuComprehensiveMCP:
                 },
                 {
                     "name": "vision_analyzer",
-                    "description": "图像分析工具",
+                    "description": "图像分析工具（需要API密钥）",
                     "parameters": {
                         "image": {"type": "string", "required": True, "description": "base64编码的图像"},
                         "prompt": {"type": "string", "required": False, "default": "请详细描述这张图片的内容"}
@@ -126,6 +129,14 @@ class ZhipuComprehensiveMCP:
                     "error": "Missing tool name",
                     "success": False
                 }, status=400)
+            
+            # 检查是否需要API密钥
+            requires_api_key = tool_name in ["web_search", "repo_analyzer", "vision_analyzer", "text_generator"]
+            if requires_api_key and not self.client:
+                return web.json_response({
+                    "error": f"Tool '{tool_name}' requires a valid API key",
+                    "success": False
+                }, status=401)
             
             # 根据工具名称执行相应功能
             if tool_name == "web_search":
@@ -236,8 +247,8 @@ class ZhipuComprehensiveMCP:
             chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
             text_content = ' '.join(chunk for chunk in chunks if chunk)
             
-            if summary:
-                # 使用智谱AI生成摘要
+            if summary and self.client:
+                # 使用智谱AI生成摘要（如果API密钥可用）
                 messages = [
                     {
                         "role": "user",
@@ -260,11 +271,13 @@ class ZhipuComprehensiveMCP:
                     "summary_length": len(summary_response.choices[0].message.content)
                 }
             else:
+                # 返回基本的网页内容（不摘要）
                 return {
                     "url": url,
                     "title": title,
                     "content": text_content[:10000],  # 截断长内容
-                    "length": len(text_content)
+                    "length": len(text_content),
+                    "summary_provided": False
                 }
                 
         except Exception as e:
@@ -310,8 +323,8 @@ class ZhipuComprehensiveMCP:
                     except:
                         continue
                 
-                if readme_content:
-                    # 使用智谱AI分析README
+                if readme_content and self.client:
+                    # 使用智谱AI分析README（如果API密钥可用）
                     messages = [
                         {
                             "role": "user",
@@ -332,15 +345,12 @@ class ZhipuComprehensiveMCP:
                     }
                 else:
                     analysis_result["analysis"]["readme"] = {
-                        "summary": "未找到README文件",
-                        "has_readme": False
+                        "summary": "未找到README文件或API密钥不可用",
+                        "has_readme": readme_content is not None
                     }
             
-            if analyze_structure:
-                # 获取仓库结构（这里简化处理，实际可能需要GitHub API）
-                structure_summary = f"仓库 {owner}/{repo} 的基本结构分析"
-                
-                # 使用智谱AI生成技术栈分析
+            if analyze_structure and self.client:
+                # 使用智谱AI生成技术栈分析（如果API密钥可用）
                 messages = [
                     {
                         "role": "user",
@@ -357,7 +367,12 @@ class ZhipuComprehensiveMCP:
                 
                 analysis_result["analysis"]["structure"] = {
                     "summary": structure_response.choices[0].message.content,
-                    "type": "predicted_based_on_repo_name"
+                    "type": "ai_analyzed"
+                }
+            else:
+                analysis_result["analysis"]["structure"] = {
+                    "summary": f"仓库 {owner}/{repo} 的基本结构信息",
+                    "type": "basic_info_only"
                 }
             
             return analysis_result
@@ -465,13 +480,22 @@ async def main():
     """主函数"""
     # 从环境变量或配置文件获取API密钥
     import os
+    import json
+    
     api_key = os.getenv("ZHIPU_API_KEY")
     
+    # 如果环境变量中没有API密钥，则尝试从配置文件读取
     if not api_key:
-        print("请设置 ZHIPU_API_KEY 环境变量")
-        return
+        config_file = "zhipu_comprehensive_config.json"
+        if os.path.exists(config_file):
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    api_key = config.get("zhipu", {}).get("api_key")
+            except Exception as e:
+                print(f"读取配置文件时出错: {e}")
     
-    mcp_server = ZhipuComprehensiveMCP(api_key)
+    mcp_server = ZhipuComprehensiveEnhancedMCP(api_key)
     app = web.Application()
     app.add_routes(mcp_server.routes)
     
@@ -482,15 +506,16 @@ async def main():
     site = web.TCPSite(runner, 'localhost', 8000)
     await site.start()
     
-    print("智谱AI Comprehensive MCP Server 已启动")
+    print("智谱AI Enhanced Comprehensive MCP Server 已启动")
+    print(f"API密钥状态: {'已配置' if api_key else '未配置'}")
     print("能力查询: GET http://localhost:8000/capabilities")
     print("执行接口: POST http://localhost:8000/execute")
     print("\n支持的工具:")
-    print("- web_search: 联网搜索")
-    print("- web_reader: 网页读取")
-    print("- repo_analyzer: 开源仓库分析")
-    print("- vision_analyzer: 视觉理解")
-    print("- text_generator: 文本生成")
+    print("- web_search: 联网搜索（需要API密钥）")
+    print("- web_reader: 网页读取（无需API密钥，摘要功能需要API密钥）")
+    print("- repo_analyzer: 开源仓库分析（需要API密钥）")
+    print("- vision_analyzer: 视觉理解（需要API密钥）")
+    print("- text_generator: 文本生成（需要API密钥）")
     
     # 保持服务器运行
     try:

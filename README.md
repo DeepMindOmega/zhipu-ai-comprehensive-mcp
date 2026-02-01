@@ -42,12 +42,14 @@ cd zhipu-ai-comprehensive-mcp
    ```bash
    pip3 install zhipuai aiohttp beautifulsoup4
    ```
+   
+   或者使用项目自带的安装脚本：
+   ```bash
+   ./setup.sh
+   ```
 
 2. 配置API密钥：
-   ```bash
-   cp config.template.json zhipu_comprehensive_config.json
-   # 编辑 zhipu_comprehensive_config.json 文件，填入您的API密钥
-   ```
+   直接编辑 `zhipu_comprehensive_config.json` 文件，将 `"YOUR_ZHIPU_API_KEY_HERE"` 替换为您的实际API密钥
 
 3. 启动服务器
    ```bash

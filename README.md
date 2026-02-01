@@ -31,7 +31,7 @@
 ### 快速安装
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/DeepMindOmega/zhipu-ai-comprehensive-mcp.git
 cd zhipu-ai-comprehensive-mcp
 ./setup.sh
 ```
